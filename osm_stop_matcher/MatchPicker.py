@@ -112,5 +112,5 @@ class MatchPicker():
 
 	def import_matches(self, matches):
 		cur = self.db.cursor()
-		cur.executemany("INSERT INTO matches VALUES(?,?,?,?,?,?,?,?,?)", matches)
+		cur.executemany("INSERT INTO matches VALUES (?{})".format(',?'*(len(matches[0])-1)), matches)
 		self.db.commit()

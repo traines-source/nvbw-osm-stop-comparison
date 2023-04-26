@@ -7,6 +7,7 @@ from rtree import index
 from haversine import haversine, Unit
 
 from osm_stop_matcher.util import  drop_table_if_exists, backup_table_if_exists
+from osm_stop_matcher.FptfStopMatcher import FptfStopMatcher
 
 class StopMatcher():
 	UNKNOWN_MODE_RATING = 0.3
@@ -23,15 +24,20 @@ class StopMatcher():
 	def __init__(self, db):
 		self.db = db
 		self.osm_stops = index.Index()
+		self.fptf_matcher = None
 		self.logger = logging.getLogger('osm_stop_matcher.StopMatcher')	
 
-	def match_stops(self):
+	def match_stops(self, threeway_match):
+		if threeway_match:
+			self.fptf_matcher = FptfStopMatcher(self.db)
 		self._match_stops('%', export = True)
 
 	def _match_stops(self, id_pattern = '%', export = False):
 		self.logger.info("Loading osm data to index")
 		self.load_osm_index()
 		self.logger.info("Loaded osm data to index")
+		if self.fptf_matcher:
+			self.fptf_matcher.load_fptf_index()
 		row = 0
 		cur = self.db.execute("SELECT * FROM haltestellen_unified where lon IS NOT NULL AND globaleID like ?", [id_pattern])
 		stops = cur.fetchall()
@@ -53,6 +59,8 @@ class StopMatcher():
 			lat = stop["lat"]
 			lon = stop["lon"]
 			id = stop["osm_id"]
+			ibnr = stop["ibnr"] if "ibnr" in stop.keys() else None
+
 			stop = {
 				"id": id,
 				"name": stop["name"],
@@ -64,6 +72,7 @@ class StopMatcher():
 				"type": stop["type"],
 				"ref": stop["ref"],
 				"ref_key": stop["ref_key"],
+				"ibnr": ibnr,
 				"next_stops": stop["next_stops"],
 				"prev_stops": stop["prev_stops"],
 				"assumed_platform": stop["assumed_platform"]
@@ -221,8 +230,14 @@ class StopMatcher():
 	def match_stop(self, stop, stop_id, coords, row):
 		no_of_candidates = 15 if self.is_bus_station(stop) else 10
 
-		candidates = list(self.osm_stops.nearest(coords, no_of_candidates, objects='raw'))
-		matches = self.rank_candidates(stop, stop_id, coords, candidates)
+		osm_candidates = list(self.osm_stops.nearest(coords, no_of_candidates, objects='raw'))
+		matches = self.rank_candidates(stop, stop_id, coords, osm_candidates)
+
+		if self.fptf_matcher:
+			fptf_candidates = self.fptf_matcher.get_nearest(coords, no_of_candidates)
+			fptf_matches = self.rank_candidates(stop, stop_id, coords, fptf_candidates)
+			matches = self.fptf_matcher.fptf_match_stop(matches, fptf_matches)
+
 		if matches:	
 			self.store_matches(stop, stop_id, matches)
 	
@@ -230,11 +245,19 @@ class StopMatcher():
 		drop_table_if_exists(self.db, "candidates")
 		self.db.execute('''CREATE TABLE candidates
 			 (ifopt_id text, osm_id text, rating real, distance real, name_distance real, platform_matches integer, successor_rating INTEGER, mode_rating real)''')
+		
+		column_count = 8
+		if self.fptf_matcher:
+			self.db.execute('''ALTER TABLE candidates ADD COLUMN ibnr text''')
+			self.db.execute('''ALTER TABLE candidates ADD COLUMN fptf_rating real''')
+			self.db.execute('''ALTER TABLE candidates ADD COLUMN osm_fptf_rating real''')
+			column_count += 3
+
 		for stop_id in self.official_matches:
 			matches = self.official_matches[stop_id]
 			rows = []
 			for match in matches:
-				rows.append((
+				row = (
 					match["globalID"], 
 					match["match"]["id"], 
 					match["rating"], 
@@ -243,12 +266,21 @@ class StopMatcher():
 					match['platform_matches'],
 					match['successor_rating'],
 					match['mode_rating'],
-					))
+				)
+				if self.fptf_matcher:
+					row += (
+						match['ibnr'],
+						match['fptf_rating'],
+						match['osm_fptf_rating']
+					)
+				rows.append(row)
 			self.logger.debug("export match candidates ", rows)
-			self.db.executemany('INSERT INTO candidates VALUES (?,?,?,?,?,?,?,?)', rows)
+			self.db.executemany('INSERT INTO candidates VALUES (?{})'.format(',?'*(column_count-1)), rows)
 		self.db.commit()
 		self.db.execute('''CREATE INDEX osm_index ON candidates(osm_id, rating DESC)''')
 		self.db.execute('''CREATE INDEX ifopt_index ON candidates(ifopt_id, rating DESC)''')
+		if self.fptf_matcher:
+			self.db.execute('''CREATE INDEX fptf_index ON candidates(ibnr, rating DESC)''')
 		
 		backup_table_if_exists(self.db, "matches", "matches_backup")
 

@@ -17,6 +17,7 @@ from osm_stop_matcher.DelfiStopsImporter import DelfiStopsImporter
 from osm_stop_matcher.StopMatcher import StopMatcher
 from osm_stop_matcher.MatchResultValidator import MatchResultValidator
 from osm_stop_matcher.OsmStopsImporter import OsmStopsImporter
+from osm_stop_matcher.FptfStopsImporter import FptfStopsImporter
         
 import logging
 import os.path
@@ -30,7 +31,7 @@ import datetime
 def retrieve_timestamp(filename):
     return os.path.getmtime(filename)
 
-def main(osmfile, db_file, stops_file, gtfs_file, stopsprovider, logfile):
+def main(osmfile, db_file, stops_file, gtfs_file, fptf_file, stopsprovider, logfile):
     logging.basicConfig(filename=logfile, filemode='w', level=logging.INFO, format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     
     logger = logging.getLogger('compare_stops')
@@ -76,6 +77,9 @@ def main(osmfile, db_file, stops_file, gtfs_file, stopsprovider, logfile):
             zhv_importer.patch_haltestellen_unified()
     else:
         zhv_importer.load_haltestellen_unified()
+
+    if fptf_file:
+        FptfStopsImporter(db).import_stops(fptf_file)
         
     importer.update_linien()
     logger.info("Updated route names")
@@ -86,7 +90,8 @@ def main(osmfile, db_file, stops_file, gtfs_file, stopsprovider, logfile):
     importer.update_platform_code()
     logger.info("Updated platform codes")
         
-    StopMatcher(db).match_stops()
+    threeway_match = fptf_file is not None
+    StopMatcher(db).match_stops(threeway_match)
     metadata['match_timestamp'] = datetime.datetime.now()
     logger.info("Matched and exported candidates")
     
@@ -103,10 +108,11 @@ if __name__ == '__main__':
     parser.add_argument('-o', dest='osmfile', required=False, help='OpenStreetMap pbf file')
     parser.add_argument('-s', dest='stopsfile', required=False, help='Stops file')
     parser.add_argument('-g', dest='gtfs_file', required=False, help='GTFS file')
+    parser.add_argument('-f', dest='fptf_file', required=False, help='FPTF/HAFAS ndjson stops file')
     parser.add_argument('-p', dest='stopsprovider', required=True, help='Stops provider.', choices=['DELFI','GTFS','NVBW'])
     parser.add_argument('-d', dest='db_file', required=False, help='sqlite DB out file', default='out/stops.db')
     parser.add_argument('-l', dest='log_file', required=False, help='log file', default='out/matching.log')
     
     args = parser.parse_args()
     print("Launching compare_stops. Progress is logged to " + args.log_file)
-    exit(main(args.osmfile, args.db_file, args.stopsfile, args.gtfs_file, args.stopsprovider, args.log_file))
+    exit(main(args.osmfile, args.db_file, args.stopsfile, args.gtfs_file, args.fptf_file, args.stopsprovider, args.log_file))

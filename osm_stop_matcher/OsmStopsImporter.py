@@ -34,7 +34,7 @@ class OsmStopsImporter(osmium.SimpleHandler):
 		drop_table_if_exists(self.db, 'osm_stops')
 		self.db.execute('''CREATE TABLE osm_stops
 			(osm_id TEXT PRIMARY KEY, name TEXT, network TEXT, operator TEXT, railway TEXT, highway TEXT, public_transport TEXT, lat REAL, lon REAL, 
-			 mode TEXT, type TEXT, ref TEXT, ref_key TEXT, assumed_platform TEXT, empty_name INTEGER)''')
+			 mode TEXT, type TEXT, ref TEXT, ref_key TEXT, ibnr TEXT, assumed_platform TEXT, empty_name INTEGER)''')
 		
 		drop_table_if_exists(self.db, 'osm_stop_areas')
 		self.db.execute('''CREATE TABLE osm_stop_areas
@@ -78,6 +78,9 @@ class OsmStopsImporter(osmium.SimpleHandler):
 	def store_osm_stop(self, stop):
 		lat = stop["lat"]
 		lon = stop["lon"]
+		ibnr = stop["tags"].get("ref:IBNR")
+		if ibnr is None:
+			ibnr = stop["tags"].get("uic_ref")
 		
 		self.rows_to_import.append((
 			stop["id"], 
@@ -93,6 +96,7 @@ class OsmStopsImporter(osmium.SimpleHandler):
 			stop["type"],
 			stop["ref"],
 			stop["ref_key"],
+			ibnr,
 			stop["assumed_platform"],
 			0
 			))
@@ -249,7 +253,7 @@ class OsmStopsImporter(osmium.SimpleHandler):
 		return None
 
 	def store_osm_stops(self, rows):
-		self.db.executemany('INSERT INTO osm_stops VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', rows)
+		self.db.executemany('INSERT INTO osm_stops VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', rows)
 		self.db.commit()
 		
 	def store_platform_nodes(self):
