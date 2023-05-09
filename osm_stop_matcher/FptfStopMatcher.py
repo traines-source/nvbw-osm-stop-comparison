@@ -61,7 +61,7 @@ class FptfStopMatcher():
 		elif not o["mode"] or not f["mode"]:
 			mode_rating = 0.7
 
-		rating = name_distance / ( 1 + distance / 10.0 )
+		rating = name_distance / ( 1 + distance / 100.0 )
 		platform_rating = 0.9
 		successor_rating = 0
 		rating = (rating * (0.5 + 0.5 * platform_rating)) ** (1 - successor_rating * 0.3 - mode_rating * 0.2)
@@ -77,7 +77,7 @@ class FptfStopMatcher():
 			best_rating_match = None
 			for fptf_match in fptf_matches:
 				rating = self.rank_osm_fptf_candidate(osm_match, fptf_match)
-				if fptf_match["rating"] * rating > best_fptf_rating * best_osm_fptf_rating:
+				if fptf_match["rating"] + rating > best_fptf_rating + best_osm_fptf_rating:
 					best_fptf_rating = fptf_match["rating"]
 					best_osm_fptf_rating = rating
 					best_rating_match = fptf_match
@@ -85,7 +85,7 @@ class FptfStopMatcher():
 				osm_match["ibnr"] = best_rating_match["match"]["ibnr"]
 				osm_match["fptf_rating"] = best_fptf_rating
 				osm_match["osm_fptf_rating"] = best_osm_fptf_rating
-				#osm_match["rating"] = min(1, osm_match["rating"] + 0.5*(best_fptf_rating * best_osm_fptf_rating))
+				#osm_match["rating"] = min(1, osm_match["rating"] + 0.1*(best_fptf_rating + best_osm_fptf_rating))
 			else:
 				osm_match["ibnr"] = None
 				osm_match["fptf_rating"] = None
