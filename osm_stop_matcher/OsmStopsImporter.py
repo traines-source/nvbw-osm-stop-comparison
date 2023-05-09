@@ -18,7 +18,7 @@ class OsmStopsImporter(osmium.SimpleHandler):
 	area_for_stop = {}
 	platform_nodes = []
 
-	def __init__(self, db, osm_file):
+	def __init__(self, db, osm_file, only_keep_more_specific=True):
 		super(OsmStopsImporter,self).__init__()
 		self.logger = logging.getLogger('osm_stop_matcher.OsmStopsImporter')
 		self.db = db
@@ -27,7 +27,7 @@ class OsmStopsImporter(osmium.SimpleHandler):
 		self.logger.info("Created osm tables")
 		self.apply_file(osm_file, locations=True)
 		self.logger.info("Loaded osm data")
-		self.export_osm_stops()
+		self.export_osm_stops(only_keep_more_specific)
 		self.logger.info("Exported osm data")
 		
 	def setup_osm_tables(self):
@@ -473,7 +473,7 @@ class OsmStopsImporter(osmium.SimpleHandler):
 		self.db.execute("""ALTER TABLE osm_stops ADD COLUMN match_state TEXT""")
 		self.db.commit()
 
-	def export_osm_stops(self):
+	def export_osm_stops(self, only_keep_more_specific):
 		self.store_osm_stops(self.rows_to_import)
 		self.logger.info("Stored osm stops")
 		self.store_platform_nodes()
@@ -488,8 +488,9 @@ class OsmStopsImporter(osmium.SimpleHandler):
 		self.logger.info("Updated infos inherited from stop areas and platforms")
 		self.deduce_missing_names_from_close_by_stops()
 		self.logger.info("Deduced missing names from close by stops")
-		self.only_keep_more_specific_stops_for_matching()
-		self.logger.info("Removed less specific stops")
+		if only_keep_more_specific:
+			self.only_keep_more_specific_stops_for_matching()
+			self.logger.info("Removed less specific stops")
 		self.add_match_state()
 		self.logger.info("Added match state")
 		

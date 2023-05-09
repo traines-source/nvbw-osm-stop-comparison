@@ -42,6 +42,8 @@ def main(osmfile, db_file, stops_file, gtfs_file, fptf_file, stopsprovider, logf
 
     importer = GtfsStopsImporter(db)
     metadata = {}
+    threeway_match = fptf_file is not None
+
     if gtfs_file:
         logger.info("Start importing gtfs " + gtfs_file)
         metadata['gtfs_file'] = gtfs_file
@@ -56,6 +58,7 @@ def main(osmfile, db_file, stops_file, gtfs_file, fptf_file, stopsprovider, logf
     elif stopsprovider == 'DELFI': 
         zhv_importer = DelfiStopsImporter(db)
     else:
+        zhv_importer = None
         logger.error("No importer for stopsprovider %s", stopsprovider)
         #return 1
     
@@ -68,7 +71,7 @@ def main(osmfile, db_file, stops_file, gtfs_file, fptf_file, stopsprovider, logf
     if osmfile:
         metadata['osm_file'] = osmfile
         metadata['osm_timestamp'] = retrieve_timestamp(osmfile)
-        OsmStopsImporter(db, osm_file = osmfile)
+        OsmStopsImporter(db, osm_file=osmfile, only_keep_more_specific=not threeway_match)
         logger.info("Imported osm file")
 
     if stopsprovider == 'GTFS':
@@ -90,7 +93,6 @@ def main(osmfile, db_file, stops_file, gtfs_file, fptf_file, stopsprovider, logf
     importer.update_platform_code()
     logger.info("Updated platform codes")
         
-    threeway_match = fptf_file is not None
     StopMatcher(db).match_stops(threeway_match)
     metadata['match_timestamp'] = datetime.datetime.now()
     logger.info("Matched and exported candidates")
