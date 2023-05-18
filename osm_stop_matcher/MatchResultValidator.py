@@ -1,4 +1,5 @@
 import logging
+from . import config
 
 class MatchResultValidator():
 	def __init__(self, db):
@@ -75,4 +76,34 @@ class MatchResultValidator():
 		self.check_name('w274101111', 'Waldheim, Niedermarkt')
 		self.check_matched('de:03403:16749', 'n5298104852', 'Stations with no quay but areas should be included in matching')
 		self.check_matched('de:08231:458:0:2', 'n302898863', 'Successor matching probably failed for Humboldtstraße')
+
+		if config.FPTF_ONLY_MODE:
+			self.logger.info("FPTF match validation...")
+			self.check_matched('de:08111:6085_G', '8005775') #Untertürkheim wrong hafas position
+			self.check_matched('de:06412:7010', '8098105') #Frankfurt Hbf tief
+			self.check_matched('de:06412:10_G', '8000105') #Frankfurt Hbf
+			self.check_matched('de:12072:900245029', '8010215') #Ludwigsfelde   wrong bus SEV, non-matching SEV RB22?
+			self.check_matched('de:15082:8010154', '8010154') #Güterglück   wrong bus SEV
+			self.check_matched('de:05315:15001:7:71', '8003372') #Köln-Nippes  wrong hafas position
+			self.check_matched('de:05315:15001:2:22', '442448') #Köln Nippes bus
+			self.check_matched('de:11000:900192001:2:52', '8010041') #Schöneweide
+			self.check_matched('de:11000:900120003_G', '8011162') #Ostkreuz 
+			self.check_matched('de:11000:900120003_G', '8089028') #Ostkreuz 
+			self.check_matched('de:07315:9037_G', '8000240') #Mainz Hbf 
+			self.check_matched('de:12053:900360124::1', '740272') #Frankfurt (Oder) Schöne Aussicht  
+			self.check_matched('de:11000:900003201_G', '8011160') #Berlin Hbf 
+			self.check_matched('de:11000:900003201_G', '8089021') #Berlin Hbf 
+			self.check_matched('de:11000:900003200_G', '8098160') #Berlin Hbf tief
+			self.check_matched('de:08315:6079', '498468') #Kappel Kaplaneimatte  >500m, name dist?
+			self.check_matched('de:16077:8012889', '8012889') #Schmölln Thür  wrong bus SEV
+			self.check_matched('de:16077:8010003', '8010003') #Altenburg  wrong bus SEV
+			self.check_matched('de:08119:5789:1:1', '8006030') #Urbach 
+			self.check_matched('de:05562:925:1:01', '8001327') #Castrop Rauxel  bus together with trains??
+			self.check_matched('de:09172:42293', '8000108') #Freilassing
+			self.check_matched('de:09172:42293', '8081063') #Freilassing ??
+			self.check_matched('de:12072:900245349::1', '729356') #Am Wall, Großbeeren 
+			self.check_matched('de:12072:900245156::1', '736360') #Schlosstraße Jüterbog  not contained in HAFAS dataset
+			self.check_matched('000010974501', '8017040') #Sophienhof 
+			self.check_matched('de:02000:8002562:1:80025621', '8002562') #Ottensen  not contained in HAFAS dataset
+			self.check_matched('de:01055:74911', '8004903') #Puttgarden not contained in DELFI?
 
