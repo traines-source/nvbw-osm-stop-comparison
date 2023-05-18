@@ -237,7 +237,7 @@ class StopMatcher():
 		if self.fptf_matcher:
 			fptf_candidates = self.fptf_matcher.get_nearest(coords, no_of_candidates)
 			fptf_matches = self.rank_candidates(stop, stop_id, coords, fptf_candidates)
-			matches = self.fptf_matcher.fptf_match_stop(matches, fptf_matches)
+			matches = self.fptf_matcher.fptf_match_stop(stop, matches, fptf_matches)
 
 		if matches:	
 			self.store_matches(stop, stop_id, matches)
